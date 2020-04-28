@@ -1,6 +1,6 @@
 # 安装
 ```
-npm install
+yarn
 
 ```
 # 运行
