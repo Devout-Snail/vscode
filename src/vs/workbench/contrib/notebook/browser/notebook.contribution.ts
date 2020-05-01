@@ -6,7 +6,7 @@
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { ResourceMap } from 'vs/base/common/map';
 import { parse } from 'vs/base/common/marshalling';
-import { basename } from 'vs/base/common/resources';
+import { basename, isEqual } from 'vs/base/common/resources';
 import { assertType } from 'vs/base/common/types';
 import { URI } from 'vs/base/common/uri';
 import { ITextModel } from 'vs/editor/common/model';
@@ -87,7 +87,7 @@ Registry.as<IEditorInputFactoryRegistry>(EditorInputExtensions.EditorInputFactor
 			if (!data || !URI.isUri(resource) || typeof name !== 'string' || typeof viewType !== 'string') {
 				return undefined;
 			}
-			return instantiationService.createInstance(NotebookEditorInput, resource, name, viewType);
+			return NotebookEditorInput.getOrCreate(instantiationService, resource, name, viewType);
 		}
 	}
 );
@@ -107,11 +107,8 @@ export class NotebookContribution implements IWorkbenchContribution {
 
 	) {
 		this.editorService.overrideOpenEditor({
-			getEditorOverrides: (editor: IEditorInput, options: IEditorOptions | undefined, group: IEditorGroup | undefined) => {
-				let resource = editor.resource;
-				if (!resource) {
-					return [];
-				}
+			getEditorOverrides: (resource: URI, options: IEditorOptions | undefined, group: IEditorGroup | undefined) => {
+				const currentEditorForResource = group?.editors.find(editor => isEqual(editor.resource, resource));
 
 				const associatedEditors = distinct([
 					...this.getUserAssociatedNotebookEditors(resource),
@@ -122,7 +119,7 @@ export class NotebookContribution implements IWorkbenchContribution {
 					return {
 						label: info.displayName,
 						id: info.id,
-						active: editor instanceof NotebookEditorInput && editor.viewType === info.id,
+						active: currentEditorForResource instanceof NotebookEditorInput && currentEditorForResource.viewType === info.id,
 						detail: info.providerDisplayName
 					};
 				});
@@ -164,6 +161,12 @@ export class NotebookContribution implements IWorkbenchContribution {
 		}
 
 		if (id === undefined) {
+			const existingEditors = group.editors.filter(editor => editor.resource && isEqual(editor.resource, resource) && !(editor instanceof NotebookEditorInput));
+
+			if (existingEditors.length) {
+				return undefined;
+			}
+
 			const userAssociatedEditors = this.getUserAssociatedEditors(resource);
 			const notebookEditor = userAssociatedEditors.filter(association => this.notebookService.getContributedNotebookProvider(association.viewType));
 
@@ -190,8 +193,11 @@ export class NotebookContribution implements IWorkbenchContribution {
 				const info = id === undefined ? infos[0] : (infos.find(info => info.id === id) || infos[0]);
 				// cell-uri -> open (container) notebook
 				const name = basename(data.notebook);
-				const input = this.instantiationService.createInstance(NotebookEditorInput, data.notebook, name, info.id);
-				this._resourceMapping.set(resource, input);
+				let input = this._resourceMapping.get(data.notebook);
+				if (!input || input.isDisposed()) {
+					input = NotebookEditorInput.getOrCreate(this.instantiationService, data.notebook, name, info.id);
+					this._resourceMapping.set(data.notebook, input);
+				}
 				return { override: this.editorService.openEditor(input, new NotebookEditorOptions({ ...options, forceReload: true, cellOptions: { resource, options } }), group) };
 			}
 		}
@@ -203,7 +209,7 @@ export class NotebookContribution implements IWorkbenchContribution {
 			return undefined;
 		}
 
-		const input = this.instantiationService.createInstance(NotebookEditorInput, resource, originalInput.getName(), info.id);
+		const input = NotebookEditorInput.getOrCreate(this.instantiationService, resource, originalInput.getName(), info.id);
 		this._resourceMapping.set(resource, input);
 
 		return { override: this.editorService.openEditor(input, options, group) };

@@ -158,7 +158,7 @@ export class ActivitybarPart extends Part implements IActivityBarService {
 				(id: string, focus?: boolean) => this.viewletService.openViewlet(id, focus),
 				(from: string, to: string, before?: Before2D) => this.compositeBar.move(from, to, before?.verticallyBefore)
 			),
-			compositeSize: 50,
+			compositeSize: 52,
 			colors: (theme: IColorTheme) => this.getActivitybarItemColors(theme),
 			overflowActionSize: ActivitybarPart.ACTION_HEIGHT
 		}));
@@ -366,6 +366,10 @@ export class ActivitybarPart extends Part implements IActivityBarService {
 			animated: false
 		}));
 
+		const homeBarIconBadge = document.createElement('div');
+		addClass(homeBarIconBadge, 'home-bar-icon-badge');
+		this.homeBarContainer.appendChild(homeBarIconBadge);
+
 		this.homeBar.push(this._register(this.instantiationService.createInstance(HomeAction, command, title, icon)), { icon: true, label: false });
 
 		const content = assertIsDefined(this.content);
@@ -424,7 +428,7 @@ export class ActivitybarPart extends Part implements IActivityBarService {
 		this.globalActivityAction = new ActivityAction({
 			id: 'workbench.actions.manage',
 			name: nls.localize('manage', "Manage"),
-			cssClass: Codicon.gear.classNames
+			cssClass: Codicon.settingsGear.classNames
 		});
 
 		if (getUserDataSyncStore(this.productService, this.configurationService)) {

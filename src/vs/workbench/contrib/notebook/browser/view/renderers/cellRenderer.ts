@@ -120,6 +120,7 @@ export class CellEditorOptions {
 		glyphMargin: false,
 		fixedOverflowWidgets: true,
 		minimap: { enabled: false },
+		renderValidationDecorations: 'on'
 	};
 
 	private _value: IEditorOptions;
@@ -207,8 +208,13 @@ abstract class AbstractCellRenderer {
 		addCodeCell.tabIndex = 0;
 		const insertCellBelow = this.instantiationService.createInstance(InsertCodeCellAction);
 
+		const toolbarContext = {
+			...context,
+			ui: true
+		};
+
 		disposables.add(DOM.addDisposableListener(addCodeCell, DOM.EventType.CLICK, e => {
-			this.actionRunner.run(insertCellBelow, context);
+			this.actionRunner.run(insertCellBelow, toolbarContext);
 			e.stopPropagation();
 		}));
 
@@ -217,7 +223,7 @@ abstract class AbstractCellRenderer {
 			if ((event.equals(KeyCode.Enter) || event.equals(KeyCode.Space))) {
 				e.preventDefault();
 				e.stopPropagation();
-				this.actionRunner.run(insertCellBelow, context);
+				this.actionRunner.run(insertCellBelow, toolbarContext);
 			}
 		})));
 
@@ -227,7 +233,7 @@ abstract class AbstractCellRenderer {
 		addMarkdownCell.tabIndex = 0;
 		const insertMarkdownBelow = this.instantiationService.createInstance(InsertMarkdownCellAction);
 		disposables.add(DOM.addDisposableListener(addMarkdownCell, DOM.EventType.CLICK, e => {
-			this.actionRunner.run(insertMarkdownBelow, context);
+			this.actionRunner.run(insertMarkdownBelow, toolbarContext);
 			e.stopPropagation();
 		}));
 
@@ -236,7 +242,7 @@ abstract class AbstractCellRenderer {
 			if ((event.equals(KeyCode.Enter) || event.equals(KeyCode.Space))) {
 				e.preventDefault();
 				e.stopPropagation();
-				this.actionRunner.run(insertMarkdownBelow, context);
+				this.actionRunner.run(insertMarkdownBelow, toolbarContext);
 			}
 		})));
 
@@ -322,6 +328,7 @@ export class MarkdownCellRenderer extends AbstractCellRenderer implements IListR
 		contextKeyService: IContextKeyService,
 		notehookEditor: INotebookEditor,
 		dndController: CellDragAndDropController,
+		private renderedEditors: Map<ICellViewModel, ICodeEditor | undefined>,
 		@IInstantiationService instantiationService: IInstantiationService,
 		@IConfigurationService configurationService: IConfigurationService,
 		@IContextMenuService contextMenuService: IContextMenuService,
@@ -409,7 +416,7 @@ export class MarkdownCellRenderer extends AbstractCellRenderer implements IListR
 
 			this.setupBetweenCellToolbarActions(element, templateData, elementDisposables, toolbarContext);
 
-			const markdownCell = new StatefullMarkdownCell(this.notebookEditor, element, templateData, this.editorOptions.value, this.instantiationService);
+			const markdownCell = new StatefullMarkdownCell(this.notebookEditor, element, templateData, this.editorOptions.value, this.renderedEditors, this.instantiationService);
 			elementDisposables.add(this.editorOptions.onDidChange(newValue => markdownCell.updateEditorOptions(newValue)));
 			elementDisposables.add(markdownCell);
 

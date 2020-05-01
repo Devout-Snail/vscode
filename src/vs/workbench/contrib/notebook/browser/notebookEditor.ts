@@ -255,7 +255,7 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 		const dndController = new CellDragAndDropController(this);
 		const renders = [
 			this.instantiationService.createInstance(CodeCellRenderer, this, this.contextKeyService, this.renderedEditors, dndController),
-			this.instantiationService.createInstance(MarkdownCellRenderer, this.contextKeyService, this, dndController),
+			this.instantiationService.createInstance(MarkdownCellRenderer, this.contextKeyService, this, dndController, this.renderedEditors),
 		];
 
 		this.list = this.instantiationService.createInstance(
@@ -636,6 +636,8 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 
 			state.contributionsState = contributionsState;
 			this.editorMemento.saveEditorState(this.group, input.resource, state);
+
+			this.notebookViewModel.viewCells.forEach(cell => cell.save());
 		}
 	}
 
@@ -677,6 +679,7 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 
 	selectElement(cell: ICellViewModel) {
 		this.list?.selectElement(cell);
+		// this.viewModel!.selectionHandles = [cell.handle];
 	}
 
 	revealInView(cell: ICellViewModel) {
@@ -759,7 +762,7 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 		return new Promise(resolve => { r = resolve; });
 	}
 
-	insertNotebookCell(cell: ICellViewModel | undefined, type: CellKind, direction: 'above' | 'below' = 'above', initialText: string = ''): CellViewModel | null {
+	insertNotebookCell(cell: ICellViewModel | undefined, type: CellKind, direction: 'above' | 'below' = 'above', initialText: string = '', ui: boolean = false): CellViewModel | null {
 		if (!this.notebookViewModel!.metadata.editable) {
 			return null;
 		}
@@ -767,8 +770,9 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 		const newLanguages = this.notebookViewModel!.languages;
 		const language = (type === CellKind.Code && newLanguages && newLanguages.length) ? newLanguages[0] : 'markdown';
 		const index = cell ? this.notebookViewModel!.getCellIndex(cell) : 0;
+		const nextIndex = ui ? this.notebookViewModel!.getNextVisibleCellIndex(index) : index + 1;
 		const insertIndex = cell ?
-			(direction === 'above' ? index : index + 1) :
+			(direction === 'above' ? index : nextIndex) :
 			index;
 		const newCell = this.notebookViewModel!.createCell(insertIndex, initialText.split(/\r?\n/g), language, type, true);
 
@@ -830,11 +834,19 @@ export class NotebookEditor extends BaseEditor implements INotebookEditor {
 		const originalIdx = this.notebookViewModel!.getCellIndex(cell);
 		const relativeToIndex = this.notebookViewModel!.getCellIndex(relativeToCell);
 
-		const newIdx = direction === 'above' ? relativeToIndex : relativeToIndex + 1;
+		let newIdx = direction === 'above' ? relativeToIndex : relativeToIndex + 1;
+		if (originalIdx < newIdx) {
+			newIdx--;
+		}
+
 		return this.moveCellToIndex(originalIdx, newIdx);
 	}
 
 	private async moveCellToIndex(index: number, newIdx: number): Promise<boolean> {
+		if (index === newIdx) {
+			return false;
+		}
+
 		if (!this.notebookViewModel!.moveCellToIdx(index, newIdx, true)) {
 			throw new Error('Notebook Editor move cell, index out of range');
 		}
@@ -1095,12 +1107,12 @@ registerThemingParticipant((theme, collector) => {
 	}
 	const link = theme.getColor(textLinkForeground);
 	if (link) {
-		collector.addRule(`.monaco-workbench .part.editor > .content .notebook-editor .cell .output a,
+		collector.addRule(`.monaco-workbench .part.editor > .content .notebook-editor .output a,
 			.monaco-workbench .part.editor > .content .notebook-editor .cell.markdown a { color: ${link};} `);
 	}
 	const activeLink = theme.getColor(textLinkActiveForeground);
 	if (activeLink) {
-		collector.addRule(`.monaco-workbench .part.editor > .content .notebook-editor .cell .output a:hover,
+		collector.addRule(`.monaco-workbench .part.editor > .content .notebook-editor .output a:hover,
 			.monaco-workbench .part.editor > .content .notebook-editor .cell .output a:active { color: ${activeLink}; }`);
 	}
 	const shortcut = theme.getColor(textPreformatForeground);
