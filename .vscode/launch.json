@@ -26,7 +26,7 @@
 			}
 		},
 		{
-			"type": "pwa-chrome",
+			"type": "chrome",
 			"request": "attach",
 			"name": "Attach to Shared Process",
 			"port": 9222,
@@ -233,6 +233,9 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Main Process",
+			"skipFiles": [
+				"<node_internals>/**"
+			],
 			"runtimeExecutable": "${workspaceFolder}/scripts/code.sh",
 			"windows": {
 				"runtimeExecutable": "${workspaceFolder}/scripts/code.bat",
