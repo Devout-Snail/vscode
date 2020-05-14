@@ -15,3 +15,8 @@ ts文档[https://www.tslang.cn/docs/handbook/gulp.html]
 git pull https://github.com/microsoft/vscode.git master
 
 ```
+# 修改文件
+
+D:\github.com\Devout-Snail\vscode\extensions\search-result\src\extension.ts
+94:			async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[]> {
+94:			async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[] | any> {
